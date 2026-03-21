@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  backend:
+    build: ./backend
+    command: python app.py
+    volumes:
+      - ./backend:/app
+    environment:
+      - SECRET_KEY=your-production-ready-secure-32-byte-flask-secret-key
+      - MONGODB_URI=mongodb://mongodb:27017/coderunner
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+    depends_on:
+      - redis
+      - mongodb
+    ports:
+      - "5000:5000" # Updated to port 5000 as requested
+
+  celery_worker:
+    build: ./backend
+    command: celery -A tasks.celery_app worker --loglevel=info
+    user: root # CRITICAL: Needs root permissions to access the host docker socket
+    privileged: true # Add privileged mode to ensure docker-in-docker socket access
+    volumes:
+      - ./backend:/app
+      - /var/run/docker.sock:/var/run/docker.sock # Allow celery to run docker containers
+    environment:
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - MONGODB_URI=mongodb://mongodb:27017/coderunner
+    depends_on:
+      - redis
+      - backend
+
+  redis:
+    image: redis:alpine
+    ports:
+      - "6379:6379"
+
+  mongodb:
+    image: mongo:5.0
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+volumes:
+  mongodb_data:
