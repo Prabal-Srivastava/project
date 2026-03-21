@@ -202,7 +202,26 @@ If code never finishes running:
 - **Redis Connection**: Check if Celery is connected to Redis (`Connected to redis://redis:6379/0`).
 - **Sandbox Images**: Ensure you built the sandboxes. Run `docker images` to see if `sandbox-python`, `sandbox-node`, etc., exist.
 
-### 3. Nginx 404 or 502 Errors
+### 3. Permission Denied Errors in Sandbox
+If you see errors like `/app/runner.sh: line 3: solution.js: Permission denied`:
+1.  **Check Dockerfile**: Ensure each sandbox `Dockerfile` (e.g., `sandbox/node/Dockerfile`) has `chown -R sandbox:sandbox /app` before switching to `USER sandbox`.
+2.  **Rebuild Images**: You must rebuild the sandbox images for changes to take effect:
+    ```bash
+    chmod +x build-sandboxes.sh
+    ./build-sandboxes.sh
+    ```
+3.  **Restart Services**:
+    ```bash
+    docker-compose down
+    docker-compose up -d --build
+    ```
+
+### 4. Docker Socket Connection Issues
+If the backend or worker cannot connect to the Docker socket:
+- **Host Permissions**: Run `sudo chmod 666 /var/run/docker.sock` on the host machine.
+- **Worker Configuration**: Ensure the `celery_worker` in `docker-compose.yml` has `user: root` and `privileged: true`.
+
+### 5. Nginx 404 or 502 Errors
 - **404 on Auth/Submit**: Ensure your Nginx `location` regex includes `auth` and `submit`.
 - **502 Bad Gateway**: This usually means the Flask container (Port 5000) is down. Run `docker ps` to check.
 - **Static Files Not Loading**: Verify the frontend build path: `ls /var/www/vhosts/frontend/build/index.html`.
